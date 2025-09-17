@@ -1,0 +1,8 @@
+# Credential bundles should never be committed
+codex-auth-bundle.tar.gz
+codex-auth-bundle.tgz
+codex-auth-bundle.zip
+codex-auth-bundle-*.tar.gz
+codex-auth-bundle-*.tgz
+codex-auth-bundle-*.zip
+*.bak-*
