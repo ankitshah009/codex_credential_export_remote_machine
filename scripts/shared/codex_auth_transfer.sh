@@ -97,12 +97,13 @@ codex_auth_transfer::collect_candidates() {
     fi
   fi
 
-  local path existing=() found prev
+  local path found prev
+  local -a existing=()
   for path in "${candidates[@]}"; do
     [ -z "$path" ] && continue
     if [ -e "$path" ]; then
       found=0
-      for prev in "${existing[@]}"; do
+      for prev in "${existing[@]:-}"; do
         if [ "$prev" = "$path" ]; then
           found=1
           break
@@ -222,13 +223,14 @@ codex_auth_transfer::do_export() {
   local bundle_path
   bundle_path=$(codex_auth_transfer::normalize_bundle_path "$2")
 
-  local tmpdir stage listfile
+  local tmpdir stage listfile cleanup_trap
   tmpdir=$(codex_auth_transfer::mktemp_dir)
   stage="$tmpdir/stage"
   mkdir -p "$stage"
   listfile="$stage/.codex_auth_paths.txt"
 
-  trap 'rm -rf "$tmpdir"' EXIT HUP INT TERM
+  cleanup_trap=$(printf 'rm -rf -- %q' "$tmpdir")
+  trap "$cleanup_trap" EXIT HUP INT TERM
 
   codex_auth_transfer::stage_paths "$os_hint" "$stage" "$listfile"
 
@@ -239,6 +241,9 @@ codex_auth_transfer::do_export() {
 
   codex_auth_transfer::log "Bundle created at $bundle_path"
   codex_auth_transfer::log "Transfer it over a secure channel only."
+
+  rm -rf "$tmpdir"
+  trap - EXIT HUP INT TERM
 }
 
 codex_auth_transfer::read_list_file() {
@@ -269,9 +274,10 @@ codex_auth_transfer::do_import() {
     return 1
   fi
 
-  local tmpdir
+  local tmpdir cleanup_trap
   tmpdir=$(codex_auth_transfer::mktemp_dir)
-  trap 'rm -rf "$tmpdir"' EXIT HUP INT TERM
+  cleanup_trap=$(printf 'rm -rf -- %q' "$tmpdir")
+  trap "$cleanup_trap" EXIT HUP INT TERM
 
   codex_auth_transfer::log "Extracting bundle $bundle_path ..."
   tar -xzf "$bundle_path" -C "$tmpdir"
@@ -309,6 +315,9 @@ codex_auth_transfer::do_import() {
 
   codex_auth_transfer::log "Credentials restored under $HOME."
   codex_auth_transfer::log "If Codex rejects the tokens, re-run login via secure channel."
+
+  rm -rf "$tmpdir"
+  trap - EXIT HUP INT TERM
 }
 
 codex_auth_transfer_main() {
